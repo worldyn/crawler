@@ -1,2 +1,4 @@
 # house-web-crawler
-A SaaS that will help you look for a house rental contract fast and easy via a web crawler that collects the latest info from several website with rental contracts.
+A SaaS that will help you easily look for an apartment/house rental contract via a web crawler that collects the latest info from several websites with rental contracts. Written in GoLang.
+
+Made by Adam Jacobs and Olle Berglöf.
