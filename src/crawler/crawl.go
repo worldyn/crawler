@@ -15,24 +15,35 @@ import (
 	"bytes"
 	"os/exec"
 	"regexp"
+	"gopkg.in/mgo.v2"
+  //"gopkg.in/mgo.v2/bson"
 )
 
 // Information about each listing on some website
 type Listing struct {
-	address string
-	price string
-	publishedDate string
-	imageUrl string
+	ListingLink string 		`bson:"_id" json:"id"`
+	Address string				`bson:"address" json:"addess"`
+	Price string					`bson:"price" json:"price"`
+	PublishedDate string	`bson:"publishedDate" json:"publishedDate"`
+	ImageUrl string				`bson:"imageUrl" json:"imageUrl"`
 }
 
 // An interface for scarping different house rental websites
 type SiteScraper interface {
+	url() string
 	scrape(doc *goquery.Document, ch chan<- Listing)
 	fillListing(s *goquery.Selection) Listing
 }
 
 // akademiskkvart.se
-type AkKvartScraper struct{}
+type AkKvartScraper struct {
+	urlBase string
+	urlParams string
+}
+
+func (akt AkKvartScraper) url() string {
+	return akt.urlBase + akt.urlParams
+}
 
 func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 	listing := Listing{}
@@ -43,16 +54,22 @@ func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 	imgDiv := s.Children().First()
 	infoDiv := s.Children().First().Next()
 
+	// Listing link
+	listingLink, linkHrefExists := imgDiv.Find("a").Attr("href")
+	if linkHrefExists {
+		listing.ListingLink = akt.urlBase+strings.Trim(listingLink, " ")
+	}
+
 	// Image URL
 	imageUrl, imgSrcExists := imgDiv.Find("img").Attr("thumb")
 	if imgSrcExists {
-		listing.imageUrl = strings.Trim(imageUrl, " ")
+		listing.ImageUrl = akt.urlBase+strings.Trim(imageUrl, " ")
 	}
 
 	// Address
 	address := infoDiv.Find("h3 a")
 	if address.Length() > 0 {
-		listing.address = strings.Trim(address.Text(), " ")
+		listing.Address = strings.Trim(address.Text(), " ")
 	}
 
 	// Price
@@ -62,7 +79,7 @@ func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 		re := regexp.MustCompile("[0-9]+")
 		match := re.FindString(price.Text())
 		if len(match) > 0 {
-			listing.price = match
+			listing.Price = match
 		}
 	}
 
@@ -73,7 +90,7 @@ func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 		re := regexp.MustCompile("[0-9]{4}-[0-9]{2}-[0-9]{2}")
 		match := re.FindString(publishedDate.Text())
 		if len(match) > 0 {
-			listing.publishedDate = match
+			listing.PublishedDate = match
 		}
 	}
 
@@ -82,6 +99,7 @@ func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 
 // Scrape listings on akademiskkvart.se as Listing struct
 func (akt AkKvartScraper) scrape(doc *goquery.Document, ch chan<- Listing) {
+	fmt.Println("Beginning to scrape...")
 	var wg sync.WaitGroup
 
 	findings := doc.Find("#listings li.template")
@@ -95,21 +113,28 @@ func (akt AkKvartScraper) scrape(doc *goquery.Document, ch chan<- Listing) {
 	})
 
 	wg.Wait()
+	fmt.Println("Scrape finished...")
 }
 
 // Initialize scraping of some site
-func crawl(url string, scraper SiteScraper, listingCh chan Listing, done chan<- bool) {
+func parseAndScrape(scraper SiteScraper, listingCh chan Listing, done chan<- bool) {
+	fmt.Println("Initializing parseAndScrape...")
 	defer func() {
 		done <- true
 	}()
 
+	url := scraper.url()
+
+	fmt.Println("Beginning html retrivial...")
 	jsOut, err := exec.Command("phantomjs", "content.js", url).Output()
 
+
 	if err != nil {
-		fmt.Println("ERROR: error phantomjs, \"" + url + "\"")
+		fmt.Println("ERROR: error phantomjs, \"" + scraper.url() + "\"")
 		fmt.Println("MSG:", err.Error())
 		return
 	}
+	fmt.Println("Html retrivial okay...")
 
 	docReader := bytes.NewReader(jsOut)
 
@@ -118,34 +143,75 @@ func crawl(url string, scraper SiteScraper, listingCh chan Listing, done chan<- 
 	if parseErr != nil {
 		fmt.Println("ERROR: goquery parsing error, \"" + url + "\"")
 		fmt.Println("MSG:", err.Error())
-		return
+		panic(parseErr)
 	}
 
 	scraper.scrape(doc, listingCh)
+	fmt.Println("parseAndScrape finished...")
 }
 
 func main() {
+	// MONGO SETUP
+	session, conErr := mgo.Dial("127.0.0.1:27017")
+	if conErr != nil {
+		fmt.Println("ERROR: mongo connection error")
+		fmt.Println("MSG:", conErr.Error())
+		panic(conErr)
+	}
+	fmt.Println("Mongodb connected...")
+
+	defer session.Close()
+
+	session.SetMode(mgo.Monotonic, true)
+
+	// Collection People
+	c := session.DB("crawler").C("listings")
+
+	// Index
+	index := mgo.Index{
+		Key:        []string{"ListingLink"},
+		Unique:     true,
+		DropDups:   true,
+		Background: true,
+		Sparse:     true,
+	}
+
+	indexErr := c.EnsureIndex(index)
+	if indexErr != nil {
+		fmt.Println("ERROR: mongo index error")
+		fmt.Println("MSG:", indexErr.Error())
+		panic(indexErr)
+	}
+
+	// CRAWLING
 	chListings := make(chan Listing)
 	chDone := make(chan bool)
 
 	//tmp
 	urlCount := 1
 
-	akScraper := AkKvartScraper{}
-	urlBase := "http://akademiskkvart.se"
-	urlExtra := "/?limit=500"
-	go crawl(urlBase+urlExtra, akScraper, chListings, chDone)
+	akScraper := AkKvartScraper { "http://akademiskkvart.se", "/?limit=500" }
+	go parseAndScrape(akScraper, chListings, chDone)
 
 	for crawlersDone := 0; crawlersDone < urlCount; {
 		select {
 		case listing := <-chListings:
-			fmt.Printf("address: %s\nimgUrl: %s.\nprice: %s\npubDate:%s\n\n",
-				listing.address, urlBase+listing.imageUrl, listing.price,
-				listing.publishedDate)
+			insertErr := c.Insert(listing)
+			//fmt.Println(json.Marshal(&listing))
+
+			if insertErr != nil &&  !mgo.IsDup(insertErr) {
+				fmt.Println("ERROR: mongo insert error")
+				fmt.Println("MSG:", insertErr.Error())
+				panic(insertErr)
+			}
+
 		case <-chDone:
 			crawlersDone++
 		}
 	}
+	fmt.Println("Mongodb insertion done...")
+
+
 
 }
   /*router := mux.NewRouter().StrictSlash(true)
