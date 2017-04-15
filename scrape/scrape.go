@@ -3,7 +3,6 @@ package scrape
 import (
 	"github.com/PuerkitoBio/goquery"
 	"fmt"
-	"os/exec"
 	"bytes"
 )
 
@@ -33,7 +32,7 @@ func ParseAndScrape(scraper SiteScraper, listingCh chan Listing, done chan<- boo
 	url := scraper.Url()
 
 	fmt.Println("Beginning html retrivial...")
-	jsOut, err := exec.Command("phantomjs", "content.js", url).Output()
+	jsOut, err := ReadSite(url)
 
 
 	if err != nil {
@@ -57,6 +56,8 @@ func ParseAndScrape(scraper SiteScraper, listingCh chan Listing, done chan<- boo
 	fmt.Println("parseAndScrape finished...")
 }
 
+// Concurrently scrapes using all scrapers in the passed slice. Every found 
+// Listing is passed to the handler.
 func ParseAndScrapeMultiple(scrapers []SiteScraper, handler func(Listing)) {
 	chListings := make(chan Listing)
 	chDone := make(chan bool)
