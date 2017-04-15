@@ -56,14 +56,3 @@ func ParseAndScrape(scraper SiteScraper, listingCh chan Listing, done chan<- boo
 	scraper.Scrape(doc, listingCh)
 	fmt.Println("parseAndScrape finished...")
 }
-
-
-
-
-
-
-  /*router := mux.NewRouter().StrictSlash(true)
-/*
-func Index(w http.ResponseWriter, r *http.Request) {
- chListingsprintf(w, "HelListing", html.EscapeString(r.URL.Path))
-}*/
