@@ -56,3 +56,26 @@ func ParseAndScrape(scraper SiteScraper, listingCh chan Listing, done chan<- boo
 	scraper.Scrape(doc, listingCh)
 	fmt.Println("parseAndScrape finished...")
 }
+
+func ParseAndScrapeMultiple(scrapers []SiteScraper, handler func(Listing)) {
+	chListings := make(chan Listing)
+	chDone := make(chan bool)
+
+	scrapersCount := len(scrapers)
+
+	for _, s := range scrapers {
+		go ParseAndScrape(s, chListings, chDone)
+	}
+
+	for scrapersDone := 0; scrapersDone < scrapersCount; {
+		select {
+		case listing := <-chListings:
+			handler(listing)
+		case <-chDone:
+			scrapersDone++
+		}
+	}
+
+	fmt.Println("Mongodb insertion done...")
+
+}
