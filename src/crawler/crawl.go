@@ -14,6 +14,7 @@ import (
 	//"time"
 	"bytes"
 	"os/exec"
+	"regexp"
 )
 
 // Information about each listing on some website
@@ -36,12 +37,14 @@ type AkKvartScraper struct{}
 func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 	listing := Listing{}
 
+	// Only address is extracted...
+
 	// Child divs
 	imgDiv := s.Children().First()
 	infoDiv := s.Children().First().Next()
 
 	// Image URL
-	imageUrl, imgSrcExists := imgDiv.Find("img").Attr("src")
+	imageUrl, imgSrcExists := imgDiv.Find("img").Attr("thumb")
 	if imgSrcExists {
 		listing.imageUrl = strings.Trim(imageUrl, " ")
 	}
@@ -53,15 +56,25 @@ func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
 	}
 
 	// Price
-	price := infoDiv.First().Next().First().Find("p.price")
+	price := infoDiv.Find("p.price")
 	if price.Length() > 0 {
-		listing.price = strings.Trim(price.Text(), " ")
+		// Use regex to extract only the price (numbers) from the text
+		re := regexp.MustCompile("[0-9]+")
+		match := re.FindString(price.Text())
+		if len(match) > 0 {
+			listing.price = match
+		}
 	}
 
 	// Published date
-	publishedDate := infoDiv.Find("ul").First().Next().Next().Next().Next().Next().Children().First()
+	publishedDate := infoDiv.Find("ul").Children().Last().Children().Last()
 	if publishedDate.Length() > 0 {
-		listing.publishedDate = strings.Trim(publishedDate.Text(), " ")
+		// Use regex to extract onlt date in format YYYY-MM-DD from the text
+		re := regexp.MustCompile("[0-9]{4}-[0-9]{2}-[0-9]{2}")
+		match := re.FindString(publishedDate.Text())
+		if len(match) > 0 {
+			listing.publishedDate = match
+		}
 	}
 
 	return listing
@@ -119,12 +132,16 @@ func main() {
 	urlCount := 1
 
 	akScraper := AkKvartScraper{}
-	go crawl("http://akademiskkvart.se/?limit=500", akScraper, chListings, chDone)
+	urlBase := "http://akademiskkvart.se"
+	urlExtra := "/?limit=500"
+	go crawl(urlBase+urlExtra, akScraper, chListings, chDone)
 
 	for crawlersDone := 0; crawlersDone < urlCount; {
 		select {
 		case listing := <-chListings:
-				fmt.Printf("Found listing at %s.\n", listing.address)
+			fmt.Printf("address: %s\nimgUrl: %s.\nprice: %s\npubDate:%s\n\n",
+				listing.address, urlBase+listing.imageUrl, listing.price,
+				listing.publishedDate)
 		case <-chDone:
 			crawlersDone++
 		}
