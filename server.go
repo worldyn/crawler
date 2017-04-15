@@ -84,31 +84,19 @@ func update(s *mgo.Session) {
 	defer session.Close()
 	c := session.DB("crawler").C("listings")
 
-	chListings := make(chan scrape.Listing)
-	chDone := make(chan bool)
-
-	urlCount := 1
 
 	akScraper := scrapeImplementations.AkKvartScraper { "http://akademiskkvart.se", "/?limit=500" }
-	go scrape.ParseAndScrape(akScraper, chListings, chDone)
+	scrapers := []scrape.SiteScraper{akScraper}
+	scrape.ParseAndScrapeMultiple(scrapers, func(listing scrape.Listing) {
+		insertErr := c.Insert(listing)
+		//fmt.Println(json.Marshal(&listing))
 
-	for crawlersDone := 0; crawlersDone < urlCount; {
-		select {
-		case listing := <-chListings:
-			insertErr := c.Insert(listing)
-			//fmt.Println(json.Marshal(&listing))
-
-			if insertErr != nil &&  !mgo.IsDup(insertErr) {
-				fmt.Println("ERROR: mongo insert error")
-				fmt.Println("MSG:", insertErr.Error())
-				panic(insertErr)
-			}
-
-		case <-chDone:
-			crawlersDone++
+		if insertErr != nil &&  !mgo.IsDup(insertErr) {
+			fmt.Println("ERROR: mongo insert error")
+			fmt.Println("MSG:", insertErr.Error())
+			panic(insertErr)
 		}
-	}
-	fmt.Println("Mongodb insertion done...")
+	});
 }
 
 // GET request where you get listings from mongo database
