@@ -2,156 +2,137 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/net/html"
-	"net/http"
-	"os"
+	//"golang.org/x/net/html"
+	"github.com/PuerkitoBio/goquery"
+	//"net/http"
+	//"encoding/json"
+	"sync"
 	"strings"
   //"html"
   //"log"
   //"github.com/gorilla/mux"
+	//"time"
+	"bytes"
+	"os/exec"
 )
 
-// Get href attribute from a Token
-func getHref(t html.Token) (ok bool, href string) {
-	// Iterate attributes until we find an "href"
-	for _, a := range t.Attr {
-		if a.Key == "href" {
-			href = a.Val
-			ok = true
-		}
-	}
-
-	// "bare" return will return the variables (ok, href) as defined in
-	// the function definition
-	return
+// Information about each listing on some website
+type Listing struct {
+	address string
+	price string
+	publishedDate string
+	imageUrl string
 }
 
-// Extract all http** links from a given webpage
-func crawl(url string, ch chan string, chFinished chan bool) {
-  // http request
-	resp, err := http.Get(url)
+// An interface for scarping different house rental websites
+type SiteScraper interface {
+	scrape(doc *goquery.Document, ch chan<- Listing)
+	fillListing(s *goquery.Selection) Listing
+}
 
+// akademiskkvart.se
+type AkKvartScraper struct{}
+
+func (akt AkKvartScraper) fillListing(s *goquery.Selection) Listing {
+	listing := Listing{}
+
+	// Child divs
+	imgDiv := s.Children().First()
+	infoDiv := s.Children().First().Next()
+
+	// Image URL
+	imageUrl, imgSrcExists := imgDiv.Find("img").Attr("src")
+	if imgSrcExists {
+		listing.imageUrl = strings.Trim(imageUrl, " ")
+	}
+
+	// Address
+	address := infoDiv.Find("h3 a")
+	if address.Length() > 0 {
+		listing.address = strings.Trim(address.Text(), " ")
+	}
+
+	// Price
+	price := infoDiv.First().Next().First().Find("p.price")
+	if price.Length() > 0 {
+		listing.price = strings.Trim(price.Text(), " ")
+	}
+
+	// Published date
+	publishedDate := infoDiv.Find("ul").First().Next().Next().Next().Next().Next().Children().First()
+	if publishedDate.Length() > 0 {
+		listing.publishedDate = strings.Trim(publishedDate.Text(), " ")
+	}
+
+	return listing
+}
+
+// Scrape listings on akademiskkvart.se as Listing struct
+func (akt AkKvartScraper) scrape(doc *goquery.Document, ch chan<- Listing) {
+	var wg sync.WaitGroup
+
+	findings := doc.Find("#listings li.template")
+
+	findings.Each(func(i int, s *goquery.Selection) {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			ch <- akt.fillListing(s)
+			wg.Done()
+		}(&wg)
+	})
+
+	wg.Wait()
+}
+
+// Initialize scraping of some site
+func crawl(url string, scraper SiteScraper, listingCh chan Listing, done chan<- bool) {
 	defer func() {
-		// Notify that we're done after this function
-		chFinished <- true
+		done <- true
 	}()
 
+	jsOut, err := exec.Command("phantomjs", "content.js", url).Output()
+
 	if err != nil {
-		fmt.Println("ERROR: Failed to crawl \"" + url + "\"")
+		fmt.Println("ERROR: error phantomjs, \"" + url + "\"")
+		fmt.Println("MSG:", err.Error())
 		return
 	}
 
-	b := resp.Body
-	defer b.Close() // close Body when the function returns
+	docReader := bytes.NewReader(jsOut)
 
-	z := html.NewTokenizer(b)
+	doc, parseErr := goquery.NewDocumentFromReader(docReader)
 
-	for {
-		tt := z.Next()
-
-		switch {
-		case tt == html.ErrorToken:
-			// End of the document, we're done
-			return
-		case tt == html.StartTagToken:
-			t := z.Token()
-
-			// Check if the token is an <a> tag
-			isAnchor := t.Data == "a"
-			if !isAnchor {
-				continue
-			}
-
-			// Extract the href value, if there is one
-			ok, url := getHref(t)
-			if !ok {
-				continue
-			}
-
-			// Make sure the url begines in http**
-			hasProto := strings.Index(url, "http") == 0
-			if hasProto {
-				ch <- url
-			}
-		}
+	if parseErr != nil {
+		fmt.Println("ERROR: goquery parsing error, \"" + url + "\"")
+		fmt.Println("MSG:", err.Error())
+		return
 	}
+
+	scraper.scrape(doc, listingCh)
 }
-
-/*func InitializeCrawling(w http.ResponseWriter, r *http.Request) {
-  vars := mux.Vars(r)
-  url := vars["url"]
-
-  foundUrls := make(map[string]bool)
-	seedUrls := string[]{url}
-
-	// Channels
-	chUrls := make(chan string)
-	chFinished := make(chan bool)
-
-	// Kick off the crawl process (concurrently)
-	for _, url := range seedUrls {
-		go crawl(url, chUrls, chFinished)
-	}
-
-	// Subscribe to both channels
-	for c := 0; c < len(seedUrls); {
-		select {
-		case url := <-chUrls:
-			foundUrls[url] = true
-		case <-chFinished:
-			c++
-		}
-	}
-
-	// We're done! Print the results...
-	fmt.Println("\nFound", len(foundUrls), "unique urls:\n")
-
-	for url, _ := range foundUrls {
-		fmt.Println(" - " + url)
-	}
-
-	close(chUrls)
-}*/
 
 func main() {
-  foundUrls := make(map[string]bool)
-	seedUrls := os.Args[1:]
+	chListings := make(chan Listing)
+	chDone := make(chan bool)
 
-	// Channels
-	chUrls := make(chan string)
-	chFinished := make(chan bool)
+	//tmp
+	urlCount := 1
 
-	// Kick off the crawl process (concurrently)
-	for _, url := range seedUrls {
-		go crawl(url, chUrls, chFinished)
-	}
+	akScraper := AkKvartScraper{}
+	go crawl("http://akademiskkvart.se/?limit=500", akScraper, chListings, chDone)
 
-	// Subscribe to both channels
-	for c := 0; c < len(seedUrls); {
+	for crawlersDone := 0; crawlersDone < urlCount; {
 		select {
-		case url := <-chUrls:
-			foundUrls[url] = true
-		case <-chFinished:
-			c++
+		case listing := <-chListings:
+				fmt.Printf("Found listing at %s.\n", listing.address)
+		case <-chDone:
+			crawlersDone++
 		}
 	}
 
-	// We're done! Print the results...
-
-	fmt.Println("\nFound", len(foundUrls), "unique urls:\n")
-
-	for url, _ := range foundUrls {
-		fmt.Println(" - " + url)
-	}
-
-	close(chUrls)
-  /*router := mux.NewRouter().StrictSlash(true)
-  router.HandleFunc("/", Index)
-  router.HandleFunc("/crawl/{url}", InitializeCrawling)
-  log.Fatal(http.ListenAndServe(":8080", router))*/
-
 }
+  /*router := mux.NewRouter().StrictSlash(true)
 /*
 func Index(w http.ResponseWriter, r *http.Request) {
-  fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+ chListingsprintf(w, "HelListing", html.EscapeString(r.URL.Path))
 }*/
