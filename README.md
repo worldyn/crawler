@@ -14,4 +14,3 @@ TODO:
 - Koppla api till front end
 
 - designa simpelt front end
-
