@@ -1,16 +1,17 @@
 # house-web-crawler
-A SaaS that will help you easily look for an apartment/house rental contract via a web crawler that collects the latest info from several websites with rental contracts. Written in GoLang.
+A SaaS in GoLang that has a REST API that easily looks for an apartment/house rental contract via a web crawler that collects the latest info from several websites with rental contracts.
 
 Made by Adam Jacobs and Olle Berglöf.
 
 TODO:
 
-- Utveckla concurrent web crawler som hämtar relevant information från särskilda bostadssidor.
+- Implement more crawls to new house listing websites.
 
-- Mongodb som uppdaterar sig själv med info från hemsidorna. DB datan visas på startsidan. Undersök hur ofta den bör uppdateras.
+- Refine REST api if needed
 
-- REST api med GET request som kör igång web crawlern till alla sidor.
+- Investigate how often the db should be updated.
 
-- Koppla api till front end
+- Connect API to front end.
 
-- designa simpelt front end
+- Design simple front end. More info comes soon. 
+
