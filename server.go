@@ -4,7 +4,6 @@ import (
 	"crawler/scrape"
 	"crawler/scrapeImplementations"
 	"fmt"
-	"github.com/gorilla/mux"
 	"net/http"
 	"log"
 	"encoding/json"
@@ -45,9 +44,12 @@ func main() {
 	/*
 	* REST API logic
 	*/
-	router := mux.NewRouter().StrictSlash(true)
-  router.HandleFunc("/", getListings(session))
-  log.Fatal(http.ListenAndServe(":8080", router))
+	 http.HandleFunc("/api", getListings(session))
+	 err := http.ListenAndServe(":8080", nil)
+	 if err != nil {
+		fmt.Println("Coulnd't listenAndServe")
+		panic(err)
+	 }
 }
 
 // MongoDB setup settings
