@@ -101,11 +101,14 @@ func update(s *mgo.Session) {
 	});
 }
 
+Address string        `bson:"address" json:"addess"`
+
+
 type apiEntry struct {
-	ID bson.ObjectId `bson:"_id,omitempty"`
-	keyString string
-	enabled string
-	label string
+	ID bson.ObjectId	`bson:"_id,omitempty"`
+	keyString string	`bson:"keyString" json:"keyString"`
+	enabled string		`bson:"enabled" json:"enabled"`
+	label string			`bson:"label" json:"label"`
 }
 
 // Make sure the request is authenticated with a valid (enabled) api key
