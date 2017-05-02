@@ -103,9 +103,9 @@ func update(s *mgo.Session) {
 
 type apiEntry struct {
 	ID bson.ObjectId	`bson:"_id json:"_id"`
-	keyString string	`bson:"keyString" json:"keyString"`
-	enabled string		`bson:"enabled" json:"enabled"`
-	label string			`bson:"label" json:"label"`
+	KeyString string	`bson:"keyString" json:"keyString"`
+	Enabled string		`bson:"enabled" json:"enabled"`
+	Label string			`bson:"label" json:"label"`
 }
 
 // Make sure the request is authenticated with a valid (enabled) api key
@@ -139,7 +139,7 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	fmt.Println("res=", res.label)
+	fmt.Println("res=", res.Label)
 
 	return true
 }
