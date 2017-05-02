@@ -114,12 +114,12 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 	values := r.URL.Query()
 	apiKeys := values["apikey"]
 
-	if apiKeys != 1 {
+	if len(apiKeys) != 1 {
 		fmt.Println("No api key passed")
 		return false
 	}
 
-	apiKey = apiKeys[0]
+	apiKey := apiKeys[0]
 
 	fmt.Println("DBG: apikey=", apiKey)
 
