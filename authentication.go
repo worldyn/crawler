@@ -28,8 +28,6 @@ func Authenticate(s *mgo.Session, r *http.Request) bool {
 
 	apiKey := apiKeys[0]
 
-	fmt.Println("DBG: apikey=", apiKey)
-
 	var resSlice []apiEntry
 	err := s.DB("crawler").C("apiKeys").Find(bson.M{"keyString": apiKey}).All(&resSlice)
 

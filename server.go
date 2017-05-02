@@ -109,8 +109,8 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 
 		if ! Authenticate(s, r) {
 			// Request not authenticated
-			//TODO: write to w?
-			fmt.Println("Not auth!")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("No valid API key passed!"))
 			return
 		}
 
