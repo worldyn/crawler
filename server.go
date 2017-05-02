@@ -101,9 +101,6 @@ func update(s *mgo.Session) {
 	});
 }
 
-Address string        `bson:"address" json:"addess"`
-
-
 type apiEntry struct {
 	ID bson.ObjectId	`bson:"_id,omitempty"`
 	keyString string	`bson:"keyString" json:"keyString"`
