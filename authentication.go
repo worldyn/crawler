@@ -48,7 +48,7 @@ func Authenticate(s *mgo.Session, r *http.Request) bool {
 
 	if res.Enabled != "true" {
 		fmt.Println("This api key is disabled!")
-		fmt.Println("enabled =", res.Enabled)
+		fmt.Println("label =", res.Label)
 		return false
 	}
 
