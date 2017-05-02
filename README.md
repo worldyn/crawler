@@ -5,6 +5,7 @@ Made by Adam Jacobs and Olle Berglöf.
 
 ## Front end repos:
 + https://github.com/osobo/findyourhome-android
++ https://github.com/worldyn/findyourhome-iOS
 
 
 TODO:
