@@ -139,7 +139,7 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
-	fmt.Println("res=", res)
+	fmt.Println("res=", res.label)
 
 	return true
 }
