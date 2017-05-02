@@ -38,13 +38,15 @@ func Authenticate(s *mgo.Session, r *http.Request) bool {
 		return false
 	}
 
-	if len(resSlice) > 1
+	if len(resSlice) > 1 {
 		fmt.Println("Multiple matches for api key. Should never happen!")
 		return false
 	} else if len(resSlice) < 1 {
 		fmt.Printf("No such api key %s. Not auth!\n", apiKey)
 		return false
 	}
+
+	res := resSlice[0]
 
 	if ! res.Enabled {
 		fmt.Printf("This api key is disabled: %s. Not auth!\n", apiKey)
