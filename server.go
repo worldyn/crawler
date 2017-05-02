@@ -101,13 +101,11 @@ func update(s *mgo.Session) {
 	});
 }
 
-/*
 type apiEntry struct {
 	keyString string
 	enabled bool
 	label string
 }
-*/
 
 // Make sure the request is authenticated with a valid (enabled) api key
 func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
@@ -127,11 +125,21 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 
 	count, err := query.Count()
 
-	if err != nil {
+	if err != nil || count != 1 {
 		fmt.Println("Error get count")
+		return false
 	}
 
-	fmt.Println("Found", count, "matching keys")
+	var res apiEntry
+	err := query.One(&res)
+
+	if err != nil {
+		fmt.Println("couldn't get struct from query")
+		return false
+	}
+
+	fmt.Println("res=", res)
+
 	return true
 }
 
