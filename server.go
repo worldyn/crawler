@@ -103,8 +103,9 @@ func update(s *mgo.Session) {
 
 // Make sure the request is authenticated with a valid (enabled) api key
 func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
-	fmt.Println("Auth path:", r.URL.Path)
-	fmt.Println("Auth host:", r.Host)
+	values := r.URL.Query()
+	apiKey := values["apikey"]
+	fmt.Printf("DBG: apikey=%s", apiKey)
 	return true
 }
 
