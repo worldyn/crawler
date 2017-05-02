@@ -104,7 +104,7 @@ func update(s *mgo.Session) {
 type apiEntry struct {
 	ID bson.ObjectId `bson:"_id,omitempty"`
 	keyString string
-	enabled bool
+	enabled string
 	label string
 }
 
