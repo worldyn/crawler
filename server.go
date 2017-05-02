@@ -116,7 +116,13 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 
 	query := s.DB("crawler").C("apiKeys").Find(bson.M{"keyString": apiKey})
 
-	fmt.Println("Found", query.Count(), "matching keys")
+	count, err := query.Count()
+
+	if err == nil {
+		fmt.Println("Error get count")
+	}
+
+	fmt.Println("Found", count, "matching keys")
 	return true
 }
 
