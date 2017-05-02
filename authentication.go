@@ -11,7 +11,7 @@ import (
 type apiEntry struct {
 	ID bson.ObjectId	`bson:"_id json:"_id"`
 	KeyString string	`bson:"keyString" json:"keyString"`
-	Enabled string		`bson:"enabled" json:"enabled"`
+	Enabled bool		`bson:"enabled" json:"enabled"`
 	Label string			`bson:"label" json:"label"`
 }
 
@@ -46,9 +46,10 @@ func Authenticate(s *mgo.Session, r *http.Request) bool {
 		return false
 	}
 
-	if res.Enabled != "true" {
+	if ! res.Enabled {
 		fmt.Println("This api key is disabled!")
 		fmt.Println("label =", res.Label)
+		fmt.Println("enabled =", res.Enabled)
 		return false
 	}
 
