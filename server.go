@@ -106,6 +106,16 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
+
+		if ! Authenticate(s, r) {
+			// Request not authenticated
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("No valid API key passed!"))
+			return
+		}
+
+		fmt.Println("api key ok")
+
 		c := session.DB("crawler").C("listings")
 
 		var listings []scrape.Listing
