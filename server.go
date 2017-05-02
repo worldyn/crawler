@@ -112,9 +112,16 @@ type apiEntry struct {
 // Make sure the request is authenticated with a valid (enabled) api key
 func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 	values := r.URL.Query()
-	apiKey := values["apikey"]
+	apiKeys := values["apikey"]
 
-	fmt.Println("DBG: apikey=" apiKey)
+	if apiKeys != 1 {
+		fmt.Println("No api key passed")
+		return false
+	}
+
+	apiKey = apiKeys[0]
+
+	fmt.Println("DBG: apikey=", apiKey)
 
 	query := s.DB("crawler").C("apiKeys").Find(bson.M{"keyString": apiKey})
 
