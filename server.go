@@ -101,11 +101,21 @@ func update(s *mgo.Session) {
 	});
 }
 
+// Make sure the request is authenticated with a valid (enabled) api key
+func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
+	fmt.Println("Auth path:", r.URL.Path)
+	fmt.Println("Auth host:", r.Host)
+	return true
+}
+
 // GET request where you get listings from mongo database
 func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
+
+		handleApiKey(&s, w, r)
+
 		c := session.DB("crawler").C("listings")
 
 		var listings []scrape.Listing
