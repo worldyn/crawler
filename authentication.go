@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"encoding/json"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 
@@ -45,7 +46,7 @@ func Authenticate(s *mgo.Session, r *http.Request) bool {
 		return false
 	}
 
-	if ! res.Enabled {
+	if res.Enabled != "true" {
 		return false
 	}
 

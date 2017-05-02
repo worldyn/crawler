@@ -114,7 +114,7 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Prinlnt("api key ok")
+		fmt.Println("api key ok")
 
 		c := session.DB("crawler").C("listings")
 
