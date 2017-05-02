@@ -131,10 +131,10 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	var res apiEntry
-	err := query.One(&res)
+	err2 := query.One(&res)
 
-	if err != nil {
-		fmt.Println("couldn't get struct from query")
+	if err2 != nil {
+		fmt.Println("couldn't get struct from query", err2)
 		return false
 	}
 
