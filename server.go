@@ -114,7 +114,7 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
 
-		handleApiKey(&s, w, r)
+		handleApiKey(s, w, r)
 
 		c := session.DB("crawler").C("listings")
 
