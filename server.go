@@ -114,7 +114,9 @@ func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 
 	res := apiEntry {}
 
-	err := s.DB("crawler").C("apiKeys").Find(bson.M{"keyString": apiKey}).One(&res)
+	query := s.DB("crawler").C("apiKeys").Find(bson.M{"keyString": apiKey})
+
+	fmt.Println("Found", query.Count(), "matching keys")
 	return true
 }
 
