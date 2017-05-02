@@ -102,7 +102,7 @@ func update(s *mgo.Session) {
 }
 
 type apiEntry struct {
-	ID bson.ObjectId	`bson:"_id,omitempty"`
+	ID bson.ObjectId	`bson:"_id, json:"_id"`
 	keyString string	`bson:"keyString" json:"keyString"`
 	enabled string		`bson:"enabled" json:"enabled"`
 	label string			`bson:"label" json:"label"`
