@@ -101,24 +101,26 @@ func update(s *mgo.Session) {
 	});
 }
 
+/*
 type apiEntry struct {
 	keyString string
 	enabled bool
 	label string
 }
+*/
 
 // Make sure the request is authenticated with a valid (enabled) api key
 func handleApiKey(s *mgo.Session, w http.ResponseWriter, r *http.Request) bool {
 	values := r.URL.Query()
 	apiKey := values["apikey"]
 
-	res := apiEntry {}
+	fmt.Println("DBG: apikey=" apiKey)
 
 	query := s.DB("crawler").C("apiKeys").Find(bson.M{"keyString": apiKey})
 
 	count, err := query.Count()
 
-	if err == nil {
+	if err != nil {
 		fmt.Println("Error get count")
 	}
 
