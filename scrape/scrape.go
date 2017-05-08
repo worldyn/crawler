@@ -4,15 +4,16 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"fmt"
 	"bytes"
+	"time"
 )
 
 //// Information about each listing on some website
 type Listing struct {
-	ListingLink string 		`bson:"_id" json:"id"`
-	Address string				`bson:"address" json:"addess"`
-	Price string					`bson:"price" json:"price"`
-	PublishedDate string	`bson:"publishedDate" json:"publishedDate"`
-	ImageUrl string				`bson:"imageUrl" json:"imageUrl"`
+	ListingLink string			`bson:"_id" json:"id"`
+	Address string					`bson:"address" json:"addess"`
+	Price string						`bson:"price" json:"price"`
+	PublishedDate time.Time	`bson:"publishedDate" json:"publishedDate"`
+	ImageUrl string					`bson:"imageUrl" json:"imageUrl"`
 }
 
 // An interface for scarping different house rental websites
