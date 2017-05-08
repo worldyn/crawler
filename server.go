@@ -105,7 +105,6 @@ func update(s *mgo.Session) {
 func createQuery(r *http.Request) bson.M {
 	values := r.URL.Query()
 	oldestDates := values["noolderthan"]
-	fmt.Println("oldestDates =", oldestDates)
 
 	// No oldest date provided: returing empty query which will return
 	// all listings from db.
@@ -115,17 +114,24 @@ func createQuery(r *http.Request) bson.M {
 
 	// If multple 'noolderthan'-dates are passed the first one is used,
 	// the rest are ignored.
-	oldestDate := oldestDates[0];
+	oldestDateStr := oldestDates[0];
 
-	// Only the date is stored in db so need to add time.
-	// Desired format is '<YYYY>-<MM>-<DD>T00:00:00.000Z'
-	oldestDate += "T00:00:00.000Z"
+	oldestDate, timeParseErr := time.Parse("2006-01-02", oldestDateStr)
 
-	return bson.M{
+	// The date passed could not be parsed. Returning empty query.
+	if timeParseErr != nil {
+		fmt.Println("Bad date string for 'noolderthan':", oldestDateStr)
+		return bson.M{}
+	}
+
+	// The resulting query
+	q := bson.M{
 		"publishedDate": bson.M{
 			"$gte": oldestDate,
 		},
 	}
+
+	return q
 }
 
 // GET request where you get listings from mongo database
