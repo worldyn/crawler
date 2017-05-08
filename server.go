@@ -101,11 +101,46 @@ func update(s *mgo.Session) {
 	});
 }
 
+// Creates a query based off the GET variables in the http request.
+func createQuery(r *http.Request) bson.M {
+	values := r.URL.Query()
+	oldestDates := values["noolderthan"]
+
+	// No oldest date provided: returing empty query which will return
+	// all listings from db.
+	if(len(oldestDates) < 1) {
+		return bson.M{}
+	}
+
+	// If multple 'noolderthan'-dates are passed the first one is used,
+	// the rest are ignored.
+	oldestDateStr := oldestDates[0];
+
+	oldestDate, timeParseErr := time.Parse("2006-01-02", oldestDateStr)
+
+	// The date passed could not be parsed. Returning empty query.
+	if timeParseErr != nil {
+		fmt.Println("Bad date string for 'noolderthan':", oldestDateStr)
+		return bson.M{}
+	}
+
+	// The resulting query
+	q := bson.M{
+		"publishedDate": bson.M{
+			"$gte": oldestDate,
+		},
+	}
+
+	return q
+}
+
 // GET request where you get listings from mongo database
 func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session := s.Copy()
 		defer session.Close()
+
+		fmt.Printf("Request made with url %s\n", r.URL.String())
 
 		if ! Authenticate(s, r) {
 			// Request not authenticated
@@ -119,7 +154,8 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		c := session.DB("crawler").C("listings")
 
 		var listings []scrape.Listing
-		findErr := c.Find(bson.M{}).All(&listings)
+		q := createQuery(r)
+		findErr := c.Find(q).All(&listings)
 		if findErr != nil {
 		  ErrorWithJSON(w, "Database error", http.StatusInternalServerError)
 		  log.Println("Failed get all books: ", findErr)

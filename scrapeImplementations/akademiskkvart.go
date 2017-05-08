@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"github.com/PuerkitoBio/goquery"
+	"time"
 )
 
 // akademiskkvart.se
@@ -64,7 +65,14 @@ func (akt AkKvartScraper) FillListing(s *goquery.Selection) scrape.Listing {
 		re := regexp.MustCompile("[0-9]{4}-[0-9]{2}-[0-9]{2}")
 		match := re.FindString(publishedDate.Text())
 		if len(match) > 0 {
-			listing.PublishedDate = match
+			//                              YYYY-MM-DD
+			pubDate, timeErr := time.Parse("2006-01-02", match)
+			if timeErr != nil {
+				//listing.PublishedDate = time.Time{}
+				fmt.Printf("Error parsing %s as Time: %s", match, timeErr.Error())
+			} else {
+				listing.PublishedDate = pubDate
+			}
 		}
 	}
 
