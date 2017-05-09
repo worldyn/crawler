@@ -76,6 +76,9 @@ func (akt AkKvartScraper) FillListing(s *goquery.Selection) scrape.Listing {
 		}
 	}
 
+	// TODO: remove this. It is temporary
+	listing.SeqNumber = 1
+
 	return listing
 }
 
