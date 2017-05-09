@@ -96,6 +96,7 @@ func createQuery(c *mgo.Collection, r *http.Request) *mgo.Query {
 		ret = c.Find(bson.M{})
 	}
 
+	ret.Sort("seqNumber")
 	return ret
 }
 
