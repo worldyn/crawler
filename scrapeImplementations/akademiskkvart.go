@@ -23,8 +23,6 @@ func (akt AkKvartScraper) Url() string {
 func (akt AkKvartScraper) FillListing(s *goquery.Selection) scrape.Listing {
 	listing := scrape.Listing{}
 
-	// Only address is extracted...
-
 	// Child divs
 	imgDiv := s.Children().First()
 	infoDiv := s.Children().First().Next()
@@ -76,12 +74,24 @@ func (akt AkKvartScraper) FillListing(s *goquery.Selection) scrape.Listing {
 		}
 	}
 
+	// area
+	area := infoDiv.Find("p.location")
+	listing.Area = area.Text()
+
+	// size
+	size := infoDiv.Find("p.size")
+	listing.Size = size.Text()
+
+	// contract
+	contract := infoDiv.Find("p.type")
+	listing.Contract = contract.Text()
+
 	return listing
 }
 
 // Scrape listings on akademiskkvart.se as Listing struct
 func (akt AkKvartScraper) Scrape(doc *goquery.Document, ch chan<- scrape.Listing) {
-	fmt.Println("Beginning to scrape...")
+	fmt.Println("Beginning to scrape a site...")
 	var wg sync.WaitGroup
 
 	findings := doc.Find("#listings li.template")

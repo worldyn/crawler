@@ -42,7 +42,7 @@ func main() {
 	}()
 
 	/*
-	* REST API logic
+	* REST API
 	*/
 	 http.HandleFunc("/api", getListings(session))
 	 err := http.ListenAndServe(":8080", nil)
@@ -58,6 +58,7 @@ func ensureIndex(s *mgo.Session) {
     defer session.Close()
 
     c := session.DB("crawler").C("listings")
+		cTemp := session.DB("crawler").C("listingsTemp")
 
 		index := mgo.Index{
 			Key:        []string{"ListingLink"},
@@ -73,6 +74,13 @@ func ensureIndex(s *mgo.Session) {
 			fmt.Println("MSG:", indexErr.Error())
 			panic(indexErr)
 		}
+
+		indexErr2 := cTemp.EnsureIndex(index)
+		if indexErr2 != nil {
+			fmt.Println("ERROR: mongo index error")
+			fmt.Println("MSG:", indexErr2.Error())
+			panic(indexErr2)
+		}
 }
 
 // Wait a certain amount of time. Decides how often the db will update
@@ -84,16 +92,16 @@ func updateWaiter() {
 func update(s *mgo.Session) {
 	session := s.Copy()
 	defer session.Close()
-	c := session.DB("crawler").C("listings")
-
+	db := session.DB("crawler")
+	c := db.C("listings")
+	//cTemp := db.C("listingsTemp")
 
 	akScraper := scrapeImplementations.AkKvartScraper { "http://akademiskkvart.se", "/?limit=500" }
 	scrapers := []scrape.SiteScraper{akScraper}
 	scrape.ParseAndScrapeMultiple(scrapers, func(listing scrape.Listing) {
 		insertErr := c.Insert(listing)
-		//fmt.Println(json.Marshal(&listing))
 
-		if insertErr != nil &&  !mgo.IsDup(insertErr) {
+		if insertErr != nil && !mgo.IsDup(insertErr) {
 			fmt.Println("ERROR: mongo insert error")
 			fmt.Println("MSG:", insertErr.Error())
 			panic(insertErr)
