@@ -23,7 +23,7 @@ func serveApi(session *mgo.Session) {
 }
 
 
-func createDateFilterQuery(oldestDates []string) bson.M {
+func createDateFilterQuery(c *mgo.Collection, oldestDates []string) *mgo.Query {
 	// If multple 'noolderthan'-dates are passed the first one is used,
 	// the rest are ignored.
 	oldestDateStr := oldestDates[0];
@@ -33,56 +33,71 @@ func createDateFilterQuery(oldestDates []string) bson.M {
 	// The date passed could not be parsed. Returning empty query.
 	if timeParseErr != nil {
 		fmt.Println("Bad date string for 'noolderthan':", oldestDateStr)
-		return bson.M{}
+		return c.Find(bson.M{})
 	}
 
 	// The resulting query
-	q := bson.M{
+	q := c.Find(bson.M{
 		"publishedDate": bson.M{
 			"$gte": oldestDate,
 		},
-	}
+	})
 
 	return q
 }
 
-func createSeqFilterQuery(seqNumbers []string) bson.M {
+func createSeqFilterQuery(c *mgo.Collection, seqNumbers []string, counts []string) *mgo.Query {
 	seqNumberStr := seqNumbers[0]
-	seqNumber, errAtoi := strconv.Atoi(seqNumberStr)
+	seqNumber, errSeq := strconv.Atoi(seqNumberStr)
 
 	// seqNumber not a valid number.
-	if errAtoi != nil {
+	if errSeq != nil {
 		fmt.Println("not a valid seq number ", seqNumberStr)
-		return bson.M{}
+		return c.Find(bson.M{})
 	}
 
-	q := bson.M{
+	q := c.Find(bson.M{
 		"seqNumber": bson.M{
 			"$gt": seqNumber,
 		},
+	})
+
+	// no count was passed => returing query for all listings with ok seqNumber.
+	if len(counts) < 1  {
+		return q
 	}
 
-	fmt.Println("resulting q =", q)
+	countStr := counts[0]
+	count, errCount := strconv.Atoi(countStr)
 
-	return q
+	// The first count passed was not an ok number. Logging and ignoring.
+	if errCount != nil {
+		fmt.Println("Not a valid count:", countStr)
+		return q
+	}
+
+	return q.Sort("seqNumber").Limit(count)
 }
 
 // Creates a query based off the GET variables in the http request.
-func createQuery(r *http.Request) bson.M {
+func createQuery(c *mgo.Collection, r *http.Request) *mgo.Query {
 	values := r.URL.Query()
-	fmt.Println("createQuery(): values =", values)
+
+	var ret *mgo.Query
 
 	oldestDates := values["noolderthan"]
-	if(len(oldestDates) > 0) {
-		return createDateFilterQuery(oldestDates)
-	}
-
 	seqNumbers := values["afterseqnumber"]
-	if(len(seqNumbers) > 0) {
-		return createSeqFilterQuery(seqNumbers)
+
+	if len(oldestDates) > 0  {
+		ret = createDateFilterQuery(c, oldestDates)
+	} else if len(seqNumbers) > 0 {
+		ret = createSeqFilterQuery(c, seqNumbers, values["count"])
+	}	else {
+		ret = c.Find(bson.M{})
 	}
 
-	return bson.M{}
+	ret.Sort("seqNumber")
+	return ret
 }
 
 
@@ -107,8 +122,8 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		c := session.DB("crawler").C("listings")
 
 		var listings []scrape.Listing
-		q := createQuery(r)
-		findErr := c.Find(q).All(&listings)
+		query := createQuery(c, r)
+		findErr := query.All(&listings)
 		if findErr != nil {
 		  errorWithJSON(w, "Database error", http.StatusInternalServerError)
 		  log.Println("Failed get all books: ", findErr)
