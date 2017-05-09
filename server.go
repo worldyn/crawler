@@ -19,7 +19,7 @@ func main() {
 
 	session.SetMode(mgo.Monotonic, true)
 
-	ensureIndex(session)
+	setupListings(session)
 
 	// Concurrent Database Updating
 	go updateCycle(session)
@@ -29,11 +29,15 @@ func main() {
 }
 
 // MongoDB setup settings
-func ensureIndex(s *mgo.Session) {
+func setupListings(s *mgo.Session) {
+		fmt.Println("A")
     session := s.Copy()
+		fmt.Println("B")
     defer session.Close()
+		fmt.Println("C")
 
     c := session.DB("crawler").C("listings")
+		fmt.Println("D")
 
 		index := mgo.Index{
 			Key:        []string{"ListingLink"},
@@ -42,6 +46,7 @@ func ensureIndex(s *mgo.Session) {
 			Background: true,
 			Sparse:     true,
 		}
+		fmt.Println("E")
 
 		indexErr := c.EnsureIndex(index)
 		if indexErr != nil {
@@ -49,5 +54,6 @@ func ensureIndex(s *mgo.Session) {
 			fmt.Println("MSG:", indexErr.Error())
 			panic(indexErr)
 		}
+		fmt.Println("F")
 }
 
