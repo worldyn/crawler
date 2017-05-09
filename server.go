@@ -30,14 +30,10 @@ func main() {
 
 // MongoDB setup settings
 func setupListings(s *mgo.Session) {
-		fmt.Println("A")
     session := s.Copy()
-		fmt.Println("B")
     defer session.Close()
-		fmt.Println("C")
 
     c := session.DB("crawler").C("listings")
-		fmt.Println("D")
 
 		index := mgo.Index{
 			Key:        []string{"ListingLink"},
@@ -46,7 +42,6 @@ func setupListings(s *mgo.Session) {
 			Background: true,
 			Sparse:     true,
 		}
-		fmt.Println("E")
 
 		indexErr := c.EnsureIndex(index)
 		if indexErr != nil {
@@ -54,6 +49,5 @@ func setupListings(s *mgo.Session) {
 			fmt.Println("MSG:", indexErr.Error())
 			panic(indexErr)
 		}
-		fmt.Println("F")
 }
 
