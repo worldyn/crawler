@@ -17,7 +17,7 @@ type apiEntry struct {
 
 // Make sure the request is authenticated with a valid (enabled) api key.
 // Returns true if proper key was passed, false otherwise.
-func Authenticate(s *mgo.Session, r *http.Request) bool {
+func authenticate(s *mgo.Session, r *http.Request) bool {
 	values := r.URL.Query()
 	apiKeys := values["apikey"]
 
