@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"net/http"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -22,19 +23,7 @@ func serveApi(session *mgo.Session) {
 }
 
 
-
-
-// Creates a query based off the GET variables in the http request.
-func createQuery(r *http.Request) bson.M {
-	values := r.URL.Query()
-	oldestDates := values["noolderthan"]
-
-	// No oldest date provided: returing empty query which will return
-	// all listings from db.
-	if(len(oldestDates) < 1) {
-		return bson.M{}
-	}
-
+func createDateFilterQuery(oldestDates []string) bson.M {
 	// If multple 'noolderthan'-dates are passed the first one is used,
 	// the rest are ignored.
 	oldestDateStr := oldestDates[0];
@@ -55,6 +44,45 @@ func createQuery(r *http.Request) bson.M {
 	}
 
 	return q
+}
+
+func createSeqFilterQuery(seqNumbers []string) bson.M {
+	seqNumberStr := seqNumbers[0]
+	seqNumber, errAtoi := strconv.Atoi(seqNumberStr)
+
+	// seqNumber not a valid number.
+	if errAtoi != nil {
+		fmt.Println("not a valid seq number ", seqNumberStr)
+		return bson.M{}
+	}
+
+	q := bson.M{
+		"seqNumber": bson.M{
+			"$gt": seqNumber,
+		},
+	}
+
+	fmt.Println("resulting q =", q)
+
+	return q
+}
+
+// Creates a query based off the GET variables in the http request.
+func createQuery(r *http.Request) bson.M {
+	values := r.URL.Query()
+	fmt.Println("createQuery(): values =", values)
+
+	oldestDates := values["noolderthan"]
+	if(len(oldestDates) > 0) {
+		return createDateFilterQuery(oldestDates)
+	}
+
+	seqNumbers := values["afterseqnumber"]
+	if(len(seqNumbers) > 0) {
+		return createSeqFilterQuery(seqNumbers)
+	}
+
+	return bson.M{}
 }
 
 
