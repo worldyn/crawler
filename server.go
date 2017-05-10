@@ -31,13 +31,22 @@ func main() {
 	ensureIndex(session)
 
 	/*
-	* Concurrent Database Updating
+	* Database Update
 	*/
-
 	go func() {
 		for {
 			updateWaiter()
 			update(session)
+		}
+	}()
+
+	/*
+	* Database pruning
+	*/
+	go func() {
+		for {
+			pruneWaiter()
+			prune(session)
 		}
 	}()
 
@@ -58,7 +67,6 @@ func ensureIndex(s *mgo.Session) {
     defer session.Close()
 
     c := session.DB("crawler").C("listings")
-		cTemp := session.DB("crawler").C("listingsTemp")
 
 		index := mgo.Index{
 			Key:        []string{"ListingLink"},
@@ -75,17 +83,16 @@ func ensureIndex(s *mgo.Session) {
 			panic(indexErr)
 		}
 
-		indexErr2 := cTemp.EnsureIndex(index)
-		if indexErr2 != nil {
-			fmt.Println("ERROR: mongo index error")
-			fmt.Println("MSG:", indexErr2.Error())
-			panic(indexErr2)
-		}
 }
 
 // Wait a certain amount of time. Decides how often the db will update
 func updateWaiter() {
-	<-time.After(20 * time.Second)
+	<-time.After(15 * time.Minute)
+}
+
+// Wait a certain amount of time. Decides how often the db will prune
+func pruneWaiter() {
+	<-time.After(10 * time.Second)
 }
 
 // update mongo db by scraping all the house listings
@@ -94,7 +101,6 @@ func update(s *mgo.Session) {
 	defer session.Close()
 	db := session.DB("crawler")
 	c := db.C("listings")
-	//cTemp := db.C("listingsTemp")
 
 	akScraper := scrapeImplementations.AkKvartScraper { "http://akademiskkvart.se", "/?limit=500" }
 	scrapers := []scrape.SiteScraper{akScraper}
@@ -107,6 +113,53 @@ func update(s *mgo.Session) {
 			panic(insertErr)
 		}
 	});
+}
+
+// Prune mongo db by checking if listings links still are available
+func prune(s *mgo.Session) {
+	fmt.Println("Initialized database prune...")
+	session := s.Copy()
+	defer session.Close()
+	db := session.DB("crawler")
+	c := db.C("listings")
+
+	var listings []scrape.Listing
+
+	// Get all listings in db and check if what statuscode you get from their ListingLink
+	// If you get 404, remove the listing from the database
+  err := c.Find(nil).All(&listings)
+  if err != nil {
+		fmt.Println("ERROR: mongo find() error")
+		fmt.Println("MSG:", err.Error())
+  } else {
+		for _,l := range listings {
+			link := l.ListingLink
+			fmt.Println(link)
+
+			resp, httpErr := http.Get(link)
+			if httpErr != nil {
+				fmt.Println("ERROR: http get error")
+				fmt.Println("MSG:", httpErr.Error())
+				return
+			}
+
+			defer resp.Body.Close()
+
+			status := resp.StatusCode
+			if status == 404 {
+				fmt.Println("Found listing link with 404 status. Removing listing...")
+
+				removeErr := c.Remove(bson.M{"_id": link})
+				if removeErr != nil {
+					fmt.Println("ERROR: mongo removal error")
+					fmt.Println("MSG:", removeErr.Error())
+					return
+				}
+			}
+		}
+	}
+
+	fmt.Println("Database prune done...")
 }
 
 // Creates a query based off the GET variables in the http request.
