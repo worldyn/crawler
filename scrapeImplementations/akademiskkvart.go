@@ -73,7 +73,7 @@ func (akt AkKvartScraper) FillListing(s *goquery.Selection) scrape.Listing {
 			}
 		}
 	}
-
+  
 	// area
 	area := infoDiv.Find("p.location")
 	listing.Area = area.Text()
@@ -85,6 +85,7 @@ func (akt AkKvartScraper) FillListing(s *goquery.Selection) scrape.Listing {
 	// contract
 	contract := infoDiv.Find("p.type")
 	listing.Contract = contract.Text()
+
 
 	return listing
 }

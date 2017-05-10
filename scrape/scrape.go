@@ -10,6 +10,7 @@ import (
 //// Information about each listing on some website
 type Listing struct {
 	ListingLink string			`bson:"_id" json:"id"`
+	SeqNumber int						`bson:"seqNumber" json:"seqNumber"`
 	Address string					`bson:"address" json:"addess"`
 	Price string						`bson:"price" json:"price"`
 	PublishedDate time.Time	`bson:"publishedDate" json:"publishedDate"`
