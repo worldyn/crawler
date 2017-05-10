@@ -15,6 +15,9 @@ type Listing struct {
 	Price string						`bson:"price" json:"price"`
 	PublishedDate time.Time	`bson:"publishedDate" json:"publishedDate"`
 	ImageUrl string					`bson:"imageUrl" json:"imageUrl"`
+	Contract string					`bson:"contract" json:"contract"`
+	Area string							`bson:"area" json:"area"`
+	Size string							`bson:"size" json:"size"`
 }
 
 // An interface for scarping different house rental websites
@@ -58,7 +61,7 @@ func ParseAndScrape(scraper SiteScraper, listingCh chan Listing, done chan<- boo
 	fmt.Println("parseAndScrape finished...")
 }
 
-// Concurrently scrapes using all scrapers in the passed slice. Every found 
+// Concurrently scrapes using all scrapers in the passed slice. Every found
 // Listing is passed to the handler.
 func ParseAndScrapeMultiple(scrapers []SiteScraper, handler func(Listing)) {
 	chListings := make(chan Listing)
