@@ -3,6 +3,10 @@ package main
 import (
 	"fmt"
 	"gopkg.in/mgo.v2"
+	"time"
+	"crawler/scrape"
+	"net/http"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func main() {
