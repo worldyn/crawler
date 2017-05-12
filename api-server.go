@@ -15,7 +15,7 @@ import (
 // Start listening for incoming connections and handle the requests.
 func serveApi(session *mgo.Session) {
 	http.HandleFunc("/api", getListings(session))
-	err := http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServeTLS(":10443", "cert.pem", "key.pem", nil)
 	if err != nil {
 		fmt.Println("Coulnd't listenAndServe")
 		panic(err)
