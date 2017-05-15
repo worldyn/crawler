@@ -27,7 +27,7 @@ func updateCycle(session *mgo.Session) {
 
 // Wait a certain amount of time. Decides how often the db will update
 func updateWaiter() {
-	<-time.After(20 * time.Second)
+	<-time.After(10 * time.Second)
 }
 
 // update mongo db by scraping all the house listings
@@ -44,12 +44,17 @@ func update(s *mgo.Session) {
 	scrape.ParseAndScrapeMultiple(scrapers, func(listing scrape.Listing) {
 		listing.SeqNumber = nextSeqNumber(s)
 		insertErr := c.Insert(listing)
-		//fmt.Println(json.Marshal(&listing))
 
-		if insertErr != nil &&  !mgo.IsDup(insertErr) {
+		if insertErr != nil && !mgo.IsDup(insertErr) {
 			fmt.Println("ERROR: mongo insert error")
 			fmt.Println("MSG:", insertErr.Error())
 			panic(insertErr)
+		}
+
+		// if not a dublicate, send push to all deviceTokens in db
+		if !mgo.IsDup(insertErr) {
+			fmt.Println("IS NOT DUBLICATE!")
+			go InitPush(session, listing.ListingLink, listing.Area)
 		}
 	});
 }
