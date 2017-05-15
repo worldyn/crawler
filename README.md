@@ -21,4 +21,7 @@ Made by Adam Jacobs and Olle Berglöf.
 4. Add app bundle in app.js
 
 ## What you need to setup HTTPS/SSL
-+ TODO
++ Get an SSL-certificate.
++ You should now have a `certificate file` and a `key file`.
++ Make sure they are both in `.pem` format and named `cert.pem` and `key.pem`.
++ Make sure to have the files located in the working directory from where you are running the server.
