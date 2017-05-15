@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
   "strings"
+  "sort"
 	"net/http"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -155,10 +156,8 @@ func createSeqFilterQuery(c *mgo.Collection, arg string, count int) *mgo.Query {
 
   if rel == GT || rel == GTE {
     q.Sort("seqNumber")
-    fmt.Println("rel is GT/GTE: sorting by seqNumber")
   } else {
     q.Sort("-seqNumber")
-    fmt.Println("rel is LT/LTE: sorting by -seqNumber")
   }
   return q.Limit(count)
 }
@@ -237,6 +236,9 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		  return
 		}
 
+    // Sort listings so the ones with the highest seqNumbers come first
+    sort.Sort(ListingsBySeq(listings))
+
 		respBody, respErr := json.MarshalIndent(listings, "", "  ")
 		if respErr != nil {
 		  log.Fatal(respErr)
@@ -245,6 +247,7 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		responseWithJSON(w, respBody, http.StatusOK)
 	}
 }
+
 
 // Api response logic
 func errorWithJSON(w http.ResponseWriter, message string, code int) {
@@ -257,4 +260,23 @@ func responseWithJSON(w http.ResponseWriter, json []byte, code int) {
     w.Header().Set("Content-Type", "application/json; charset=utf-8")
     w.WriteHeader(code)
     w.Write(json)
+}
+
+
+
+// Sorting listings by SeqNumber:
+type ListingsBySeq []scrape.Listing
+
+func (listings ListingsBySeq) Len() int {
+  return len(listings)
+}
+
+func (listings ListingsBySeq) Swap(i int, j int) {
+  listings[i], listings[j] = listings[j], listings[i]
+}
+
+func (listings ListingsBySeq) Less(i int, j int) bool {
+  //return listings[i].SeqNumber < listings[j].SeqNumber
+  // We want the listings with higher seqNumber (newer) to come first.
+  return listings[i].SeqNumber > listings[j].SeqNumber
 }
