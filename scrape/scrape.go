@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//// Information about each listing on some website
+// Information about each listing on some website
 type Listing struct {
 	ListingLink string			`bson:"_id" json:"id"`
 	SeqNumber int						`bson:"seqNumber" json:"seqNumber"`
