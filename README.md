@@ -18,6 +18,7 @@ Made by Adam Jacobs and Olle Berglöf.
 1. Get an Apple Developer Account.
 2. Find your key Id, team Id and add those in apple-setup.go or in a seperate file
 3. Add the .p8 file key to the apns.p8 file.
+4. Add app bundle in app.js
 
 ## What you need to setup HTTPS/SSL
 + TODO
