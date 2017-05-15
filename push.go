@@ -36,8 +36,8 @@ func InitPush(s *mgo.Session, link string, area string) {
 }
 
 func SendPushApple(listingLink string, area string, deviceToken string) {
-  keyId := ""
-  teamId := ""
+  keyId := KeyId()
+  teamId := TeamId()
   status, err := exec.Command("node", "app.js", keyId, teamId, deviceToken, listingLink, area).Output()
 
   fmt.Println("Status: ", status, "...")
