@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strconv"
+  "strings"
+  "sort"
 	"net/http"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
@@ -11,6 +13,16 @@ import (
 	"log"
 	"encoding/json"
 )
+
+
+// Relationships
+const (
+  GT  = iota // Greater than
+  GTE = iota // Greater than or equal to
+  LT  = iota // Less than
+  LTE = iota // Less than or equal to
+)
+
 
 // Start listening for incoming connections and handle the requests.
 func serveApi(session *mgo.Session) {
@@ -28,61 +40,147 @@ func serveApi(session *mgo.Session) {
 	}
 }
 
+// Takes a relationship (eg GT) and returns a string used when querying mongo
+// (ie "$gt"). Assumes valid relationship is passed. Otherwise empty string is
+// returned.
+func relToJsonRel(rel int) string {
+  switch(rel) {
+  case GT:
+    return "$gt"
+  case GTE:
+    return "$gte"
+  case LT:
+    return "$lt"
+  case LTE:
+    return "$lte"
+  default:
+    return ""
+  }
+}
 
-func createDateFilterQuery(c *mgo.Collection, oldestDates []string) *mgo.Query {
-	// If multple 'noolderthan'-dates are passed the first one is used,
-	// the rest are ignored.
-	oldestDateStr := oldestDates[0];
+// Takes a string like "gte:2017-05-01" and returns (GTE, "2017-05-01", true) or
+// "lt:100" and returns (LT, "100", true). The last return is always true for
+// valid inputs. False otherwise.
+func parseFilterArg(arg string) (int, string, bool) {
+  parts := strings.Split(arg, ":")
 
-	oldestDate, timeParseErr := time.Parse("2006-01-02", oldestDateStr)
+  if len(parts) != 2 {
+    return 0, "", false
+  }
+
+  var relationship int
+
+  switch relationshipStr := strings.ToLower(parts[0]); relationshipStr {
+  case "gt":
+    relationship = GT
+  case "gte":
+    relationship = GTE
+  case "lt":
+    relationship = LT
+  case "lte":
+    relationship = LTE
+  default:
+    return 0, "", false
+  }
+
+  return relationship, parts[1], true
+
+}
+
+func createDateFilterQuery(c *mgo.Collection, arg string, count int) *mgo.Query {
+  rel, dateStr, success := parseFilterArg(arg)
+  if !success {
+    fmt.Println("Poorly formatted argument for date filter:", arg)
+    return c.Find(bson.M{})
+  }
+
+	date, timeParseErr := time.Parse("2006-01-02", dateStr)
 
 	// The date passed could not be parsed. Returning empty query.
 	if timeParseErr != nil {
-		fmt.Println("Bad date string for 'noolderthan':", oldestDateStr)
+		fmt.Println("Bad date string for date filter:", dateStr)
 		return c.Find(bson.M{})
 	}
 
-	// The resulting query
+  jsonRel := relToJsonRel(rel)
+
 	q := c.Find(bson.M{
 		"publishedDate": bson.M{
-			"$gte": oldestDate,
+			jsonRel: date,
 		},
 	})
+
+
+  // Smallest valid count is one.
+  // If something smaller is passed there is no restriction.
+	if count < 1 {
+		return q
+	}
+
+  if rel == GT || rel == GTE {
+    q = q.Sort("publishedDate")
+  } else {
+    q = q.Sort("-publishedDate")
+  }
+  return q.Limit(count)
 
 	return q
 }
 
-func createSeqFilterQuery(c *mgo.Collection, seqNumbers []string, counts []string) *mgo.Query {
-	seqNumberStr := seqNumbers[0]
-	seqNumber, errSeq := strconv.Atoi(seqNumberStr)
+func createSeqFilterQuery(c *mgo.Collection, arg string, count int) *mgo.Query {
+  rel, seqStr, success := parseFilterArg(arg)
+  if !success {
+    fmt.Println("Poorly formatted argument for sequence filter:", arg)
+    return c.Find(bson.M{})
+  }
 
-	// seqNumber not a valid number.
-	if errSeq != nil {
-		fmt.Println("not a valid seq number ", seqNumberStr)
-		return c.Find(bson.M{})
-	}
+  seqNum, errAtoi := strconv.Atoi(seqStr)
+  if errAtoi != nil {
+    fmt.Println("Passed seqNum not an integer:", arg)
+    return c.Find(bson.M{})
+  }
+
+  jsonRel := relToJsonRel(rel)
 
 	q := c.Find(bson.M{
 		"seqNumber": bson.M{
-			"$gt": seqNumber,
+			jsonRel: seqNum,
 		},
 	})
 
-	// no count was passed => returing query for all listings with ok seqNumber.
-	if len(counts) < 1  {
+  // Smallest valid count is one.
+  // If something smaller is passed there is no restriction.
+	if count < 1 {
 		return q
 	}
 
-	countStr := counts[0]
-	count, errCount := strconv.Atoi(countStr)
+  if rel == GT || rel == GTE {
+    q.Sort("seqNumber")
+  } else {
+    q.Sort("-seqNumber")
+  }
+  return q.Limit(count)
+}
 
-	// The first count passed was not an ok number. Logging and ignoring.
-	if errCount != nil {
-		fmt.Println("Not a valid count:", countStr)
-		return q
-	}
+// Takes the count get argument(s) and returns an int represeting the passed
+// count. Returns -1 if no count is (properly passed).
+// The count is only found if it is written as an integer and is the first
+// count passed in the url.
+func extractCount(countStrs []string) int {
+  // Default count. Means no restriction.
+  count := -1
+  if len(countStrs) >= 1 {
+    countStr := countStrs[0]
+    countRes, err := strconv.Atoi(countStr)
 
-	return q.Sort("seqNumber").Limit(count)
+    // count is a valid number.
+    if err == nil {
+      count = countRes
+    }
+    // Else we let it stay -1
+  }
+
+  return count
 }
 
 // Creates a query based off the GET variables in the http request.
@@ -91,18 +189,20 @@ func createQuery(c *mgo.Collection, r *http.Request) *mgo.Query {
 
 	var ret *mgo.Query
 
-	oldestDates := values["noolderthan"]
-	seqNumbers := values["afterseqnumber"]
+  countStrs := values["count"]
+	seqFilterStrs := values["seqfilter"]
+	dateFilterStrs := values["datefilter"]
 
-	if len(oldestDates) > 0  {
-		ret = createDateFilterQuery(c, oldestDates)
-	} else if len(seqNumbers) > 0 {
-		ret = createSeqFilterQuery(c, seqNumbers, values["count"])
-	}	else {
-		ret = c.Find(bson.M{})
-	}
+  count := extractCount(countStrs)
 
-	ret.Sort("seqNumber")
+  if len(seqFilterStrs) >= 1 {
+    ret = createSeqFilterQuery(c, seqFilterStrs[0], count)
+  } else if len(dateFilterStrs) >= 1 {
+    ret = createDateFilterQuery(c, dateFilterStrs[0], count)
+  } else {
+    ret = c.Find(bson.M{})
+  }
+
 	return ret
 }
 
@@ -136,6 +236,9 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		  return
 		}
 
+    // Sort listings so the ones with the highest seqNumbers come first
+    sort.Sort(ListingsBySeq(listings))
+
 		respBody, respErr := json.MarshalIndent(listings, "", "  ")
 		if respErr != nil {
 		  log.Fatal(respErr)
@@ -144,6 +247,7 @@ func getListings(s *mgo.Session) func(w http.ResponseWriter, r *http.Request) {
 		responseWithJSON(w, respBody, http.StatusOK)
 	}
 }
+
 
 // Api response logic
 func errorWithJSON(w http.ResponseWriter, message string, code int) {
@@ -156,4 +260,23 @@ func responseWithJSON(w http.ResponseWriter, json []byte, code int) {
     w.Header().Set("Content-Type", "application/json; charset=utf-8")
     w.WriteHeader(code)
     w.Write(json)
+}
+
+
+
+// Sorting listings by SeqNumber:
+type ListingsBySeq []scrape.Listing
+
+func (listings ListingsBySeq) Len() int {
+  return len(listings)
+}
+
+func (listings ListingsBySeq) Swap(i int, j int) {
+  listings[i], listings[j] = listings[j], listings[i]
+}
+
+func (listings ListingsBySeq) Less(i int, j int) bool {
+  //return listings[i].SeqNumber < listings[j].SeqNumber
+  // We want the listings with higher seqNumber (newer) to come first.
+  return listings[i].SeqNumber > listings[j].SeqNumber
 }
