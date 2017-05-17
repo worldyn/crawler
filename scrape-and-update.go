@@ -5,15 +5,8 @@ import (
 	"crawler/scrape"
 	"crawler/scrapeImplementations"
 	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 	"time"
 )
-
-type counterEntry struct {
-	CounterName string	`bson:"counterName" json:"counterName"`
-	SeqNumber int				`bson:"seqNumber" json:"seqNumber"`
-}
-
 
 // Runs indefinitely. Sleeps for some time, then scrapes and inserts new
 // listings into db. Then repeats.
@@ -59,33 +52,3 @@ func update(s *mgo.Session) {
 	});
 }
 
-func nextSeqNumber(s *mgo.Session) int {
-	session := s.Copy()
-	defer session.Close()
-	c := session.DB("crawler").C("counters")
-
-	findQuery := bson.M{
-		"counterName": "listingCounter",
-	}
-
-	var counterRes counterEntry
-	errFind := c.Find(findQuery).One(&counterRes)
-
-	if errFind != nil {
-		fmt.Println("Coulnd't retrieve listings counter:", errFind)
-		panic(errFind)
-	}
-
-	ret := counterRes.SeqNumber
-
-	counterRes.SeqNumber++
-
-	errUpdate := c.Update(findQuery, counterRes)
-
-	if errUpdate != nil {
-		fmt.Println("Error updating listings counter:", errUpdate)
-		panic(errUpdate)
-	}
-
-	return ret
-}
