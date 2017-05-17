@@ -1,8 +1,8 @@
 package main
 
 func TeamId() string {
-  return "put_your_team_id_here"
+  return "XXX_TEAM_ID_XXX"
 }
 func KeyId() string {
-  return "put_your_key_id_here"
+  return "XXX_KEY_ID_XXX"
 }

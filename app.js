@@ -35,7 +35,7 @@ var apnProvider = new apn.Provider({
 var notification = new apn.Notification();
 
 // Specify your iOS app's Bundle ID (accessible within the project editor)
-notification.topic = '';
+notification.topic = 'XXX_TOPIC_XXX';
 
 // Set expiration to 1 hour from now (in case device is offline)
 notification.expiry = Math.floor(Date.now() / 1000) + 3600;
