@@ -12,9 +12,8 @@ type Device struct {
 	DeviceToken string     `bson:"deviceToken" json:"deviceToken"`
 }
 
-func InitPush(s *mgo.Session, link string, area string) {
+func InitPush(session *mgo.Session, link string, area string) {
   fmt.Println("InitPush!")
-  session := s.Copy()
   defer session.Close()
 
   db := session.DB("crawler")

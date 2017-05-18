@@ -47,7 +47,7 @@ func update(s *mgo.Session) {
 		// if not a dublicate, send push to all deviceTokens in db
 		if !mgo.IsDup(insertErr) {
 			fmt.Println("IS NOT DUBLICATE!")
-			go InitPush(session, listing.ListingLink, listing.Area)
+			go InitPush(session.Copy(), listing.ListingLink, listing.Area)
 		}
 	});
 }
